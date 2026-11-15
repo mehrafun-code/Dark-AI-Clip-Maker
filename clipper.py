@@ -8,19 +8,40 @@ from pathlib import Path
 def download_video(url, out_dir):
     import yt_dlp
     out_dir = Path(out_dir)
-    opts = {
-        "format": "bv*[height<=1080]+ba/b[height<=1080]/b",
-        "outtmpl": str(out_dir / "source.%(ext)s"),
-        "merge_output_format": "mp4",
-        "noplaylist": True,
-        "quiet": True,
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-    path = out_dir / "source.mp4"
-    if not path.exists():
-        path = next(out_dir.glob("source.*"))
-    return path, info.get("title", "video")
+    # Pehle behtar quality + merge (mkv sab codecs leta hai), phir simple single-file format
+    attempts = [
+        {"format": "bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b",
+         "merge_output_format": "mkv"},
+        {"format": "b[height<=720]/b"},
+        {"format": "worst"},
+    ]
+    last_err = None
+    for extra in attempts:
+        for old in out_dir.glob("source.*"):
+            try:
+                old.unlink()
+            except OSError:
+                pass
+        opts = {
+            "outtmpl": str(out_dir / "source.%(ext)s"),
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
+            "retries": 5,
+            "fragment_retries": 5,
+            "concurrent_fragment_downloads": 4,
+            **extra,
+        }
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+            files = [p for p in out_dir.glob("source.*") if p.suffix not in (".part", ".ytdl")]
+            if files:
+                files.sort(key=lambda p: p.stat().st_size, reverse=True)
+                return files[0], info.get("title", "video")
+        except Exception as e:  # agla format try karo
+            last_err = e
+    raise RuntimeError(f"Video download nahi ho saki. Link check karo (live stream ho to khatam ho chuki ho). Detail: {last_err}")
 
 
 # ---------- 2. Transcribe ----------
