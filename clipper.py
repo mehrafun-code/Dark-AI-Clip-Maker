@@ -5,7 +5,12 @@ from pathlib import Path
 
 
 # ---------- 1. Download ----------
-def download_video(url, out_dir):
+def _clean(msg):
+    """Error message se rang ke ajeeb characters hatao."""
+    return re.sub(r"\x1b\[[0-9;]*m|\[[0-9;]*m", "", str(msg)).replace("\ufffd", "").strip()
+
+
+def download_video(url, out_dir, cookies_browser=None):
     import yt_dlp
     out_dir = Path(out_dir)
     # Pehle behtar quality + merge (mkv sab codecs leta hai), phir simple single-file format
@@ -32,6 +37,8 @@ def download_video(url, out_dir):
             "concurrent_fragment_downloads": 4,
             **extra,
         }
+        if cookies_browser:
+            opts["cookiesfrombrowser"] = (cookies_browser,)
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=True)
@@ -41,7 +48,18 @@ def download_video(url, out_dir):
                 return files[0], info.get("title", "video")
         except Exception as e:  # agla format try karo
             last_err = e
-    raise RuntimeError(f"Video download nahi ho saki. Link check karo (live stream ho to khatam ho chuki ho). Detail: {last_err}")
+            low = str(e).lower()
+            if "confirm your age" in low or "sign in" in low:
+                raise RuntimeError(
+                    "Ye video age-restricted hai (YouTube login mangta hai). Ya to koi aam video use karo, "
+                    "ya sidebar mein 'Browser login' chuno (us browser mein YouTube par login hona chahiye)."
+                )
+            if "cookie" in low or "dpapi" in low or "could not copy" in low:
+                raise RuntimeError(
+                    "Browser ki cookies nahi padh saka. Browser band karke dobara try karo, "
+                    "ya Firefox / Edge chuno. Detail: " + _clean(e)
+                )
+    raise RuntimeError("Video download nahi ho saki. Link check karo (live stream ho to khatam ho chuki ho). Detail: " + _clean(last_err))
 
 
 # ---------- 2. Transcribe ----------

@@ -34,6 +34,9 @@ with st.sidebar:
     min_d, max_d = st.slider("Clip length (seconds)", 15, 90, (30, 60))
     captions = st.checkbox("Captions lagao", True)
     face_track = st.checkbox("Chehra track karo", True)
+    cookies_choice = st.selectbox("Browser login (age-restricted videos ke liye)",
+                                  ["Nahi", "firefox", "edge", "chrome"],
+                                  help="Sirf tab chuno jab video age-restricted ho. Us browser mein YouTube par login hona chahiye.")
 
 url = st.text_input("YouTube link")
 
@@ -42,7 +45,7 @@ if st.button("Generate Clips", type="primary") and url:
     try:
         with st.status("Kaam ho raha hai...", expanded=True) as status:
             st.write("1/4 Video download ho rahi hai...")
-            video, title = clipper.download_video(url, work)
+            video, title = clipper.download_video(url, work, None if cookies_choice == "Nahi" else cookies_choice)
             st.write("2/4 Awaaz text mein badal rahi hai (thora time lagega)...")
             segments = clipper.transcribe(video, whisper_size, device)
             if not segments:
@@ -62,7 +65,7 @@ if st.button("Generate Clips", type="primary") and url:
             status.update(label="Ho gaya!", state="complete")
         st.session_state["results"] = results
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error: {clipper._clean(e)}")
 
 for i, (c, path) in enumerate(st.session_state.get("results", []), 1):
     st.divider()
