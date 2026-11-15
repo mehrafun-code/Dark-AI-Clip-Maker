@@ -24,5 +24,10 @@ if __name__ == "__main__":
         "--global.developmentMode=false",
         "--browser.gatherUsageStats=false",
         "--server.headless=false",
+        "--theme.base=dark",
+        "--theme.primaryColor=#e11d48",
+        "--theme.backgroundColor=#0b0b10",
+        "--theme.secondaryBackgroundColor=#14141c",
+        "--theme.textColor=#eaeaf0",
     ]
     sys.exit(stcli.main())
